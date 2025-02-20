@@ -17,29 +17,34 @@ const PORT = process.env.PORT || 8080;
 
 // Middleware to parse JSON requests
 app.use(express.json());
+
+// Establish db connection
 connectMongo();
 
+// serve the static files (images)
 app.use("/outputImages", express.static("compressedImages"));
 
+// upload endpoint
 app.post(
   "/upload",
   fileUpload.single("file"),
   async (req: Request, res: Response) => {
-    // validate file
+    // validate if file exist
     if (!req.file || !req.file?.path) {
       res.status(404).json({ message: "File Not Found" });
     }
+
     const webHookURL = req.body.webhookURL;
     const imageProcessor = new ImageProcessor();
     const date = new Date();
     const requestId = `${req.file?.filename}${date.getTime()}`;
     const filePath = path.join(process.cwd(), req.file?.path!);
-    console.log("filePath", filePath);
 
     try {
+      //  csv validation
       const validator = new FileValidation(filePath);
       const validationResult = await validator.validate();
-      console.log(validationResult);
+
       if (validationResult && validationResult.errors.length > 0) {
         console.log(validationResult.errors);
 
@@ -48,11 +53,14 @@ app.post(
       }
 
       await setStatus(requestId);
+      // client receives the requestId and status
       res.send({ "request id": requestId, status: "Pending" });
 
+      // reading the csv content
       const csvContent: CSVRow[] = await validator.parseCSV(filePath);
       console.log("csvContent:", csvContent);
 
+      // downloading all the images from links and saving it to server downloadImage folder
       const images = await Promise.all(
         csvContent.map(async (e: CSVRow) => {
           const paths = await downloadImage(
@@ -66,12 +74,14 @@ app.post(
         })
       );
 
+      //compressing the image to 50% of quality
       const compressResponse = await Promise.all(
         images.map(async (e) => {
           return await imageProcessor.processMultipleImages(e.imagesPath);
         })
       );
 
+      //save images to DB
       await Promise.all(
         compressResponse
           .flatMap((e: ProcessingOutput[]) => e)
@@ -81,11 +91,16 @@ app.post(
             }
           })
       );
+
+      //marking job as completed in DB
       await setStatus(requestId, "Completed");
+
+      //cleanup the original images from server
       await cleanDownloadFolder();
+
       const imageBaseURL = `${req.protocol}://${req.get("host")}/outputImages/`;
 
-      //creat output CSV file
+      //create output CSV file
       const outputFile = await createOutputFile(
         filePath,
         filePath,
@@ -93,7 +108,7 @@ app.post(
         imageBaseURL
       );
 
-      // send it to webhook
+      //sending csv to it to webhook
       await sendWebhookNotification(
         webHookURL,
         outputFile,
