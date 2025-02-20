@@ -47,11 +47,11 @@ The system processes CSV files containing product image information, compresses 
 
 ### 3.3 API Endpoints
 
-## POST /api/upload
+## POST /upload
 - Accepts: multipart/form-data (CSV file+ Webhook URL)
 - Returns: { requestId: string }
 
-## GET /api/status/:requestId
+## GET /status?requestId=''
 - Returns: {
 -    status: string,
 -    requestId:string,   
@@ -79,4 +79,30 @@ The system processes CSV files containing product image information, compresses 
 - Processing errors
 - Database operation errors
 
-
+#### POSTMAN COLLECTION #####
+{
+	"info": {
+		"_postman_id": "32a149d2-40ce-4a76-85ae-7774f58a5a43",
+		"name": "ImageCompression",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "14414006"
+	},
+	"item": [
+		{
+			"name": "upload",
+			"request": {
+				"method": "GET",
+				"header": []
+			},
+			"response": []
+		},
+		{
+			"name": "status",
+			"request": {
+				"method": "GET",
+				"header": []
+			},
+			"response": []
+		}
+	]
+}
